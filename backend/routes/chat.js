@@ -1,13 +1,10 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
+const db = require('../config/database');
 const router = express.Router();
 
-// In-memory storage for chat sessions and messages
-const chatSessions = new Map();
-const chatMessages = new Map();
-
 // Get chat session or create new one
-router.post('/session', (req, res) => {
+router.post('/session', async (req, res) => {
   try {
     const { userId } = req.body;
     
@@ -16,33 +13,40 @@ router.post('/session', (req, res) => {
     }
 
     // Check if user has existing active session
-    let sessionId = null;
-    for (const [id, session] of chatSessions.entries()) {
-      if (session.userId === userId && session.active) {
-        sessionId = id;
-        break;
-      }
+    let existingSession = await db.chatSessions.findOne({ 
+      userId, 
+      active: true 
+    });
+
+    if (existingSession) {
+      // Update last activity
+      await db.chatSessions.update(
+        { _id: existingSession._id },
+        { $set: { lastActivity: new Date().toISOString() } }
+      );
+      
+      return res.json({
+        sessionId: existingSession.id,
+        session: existingSession
+      });
     }
 
-    // Create new session if none exists
-    if (!sessionId) {
-      sessionId = uuidv4();
-      chatSessions.set(sessionId, {
-        id: sessionId,
-        userId,
-        startTime: new Date().toISOString(),
-        lastActivity: new Date().toISOString(),
-        active: true,
-        messageCount: 0
-      });
-      
-      // Initialize message history for this session
-      chatMessages.set(sessionId, []);
-    }
+    // Create new session
+    const sessionId = uuidv4();
+    const newSession = {
+      id: sessionId,
+      userId,
+      startTime: new Date().toISOString(),
+      lastActivity: new Date().toISOString(),
+      active: true,
+      messageCount: 0
+    };
+    
+    await db.chatSessions.insert(newSession);
 
     res.json({
       sessionId,
-      session: chatSessions.get(sessionId)
+      session: newSession
     });
 
   } catch (error) {
@@ -52,30 +56,36 @@ router.post('/session', (req, res) => {
 });
 
 // Get chat history for a session
-router.get('/history/:sessionId', (req, res) => {
+router.get('/history/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { limit = 50, offset = 0 } = req.query;
 
-    if (!chatMessages.has(sessionId)) {
+    // Check if session exists
+    const session = await db.chatSessions.findOne({ id: sessionId });
+    if (!session) {
       return res.status(404).json({ message: 'Chat session not found' });
     }
 
-    const messages = chatMessages.get(sessionId);
-    const paginatedMessages = messages
-      .slice(parseInt(offset), parseInt(offset) + parseInt(limit))
-      .map(msg => ({
-        id: msg.id,
-        message: msg.message,
-        sender: msg.sender,
-        timestamp: msg.timestamp,
-        resources: msg.resources,
-        moodCheck: msg.moodCheck
-      }));
+    const messages = await db.chatMessages.find({ sessionId })
+      .sort({ timestamp: 1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit));
+
+    const totalCount = await db.chatMessages.count({ sessionId });
+
+    const formattedMessages = messages.map(msg => ({
+      id: msg.id,
+      message: msg.message,
+      sender: msg.sender,
+      timestamp: msg.timestamp,
+      resources: msg.resources,
+      moodCheck: msg.moodCheck
+    }));
 
     res.json({
-      messages: paginatedMessages,
-      total: messages.length,
+      messages: formattedMessages,
+      total: totalCount,
       sessionId
     });
 
@@ -86,7 +96,7 @@ router.get('/history/:sessionId', (req, res) => {
 });
 
 // Save a message to chat history
-router.post('/message', (req, res) => {
+router.post('/message', async (req, res) => {
   try {
     const { sessionId, message, sender, resources, moodCheck } = req.body;
 
@@ -95,7 +105,8 @@ router.post('/message', (req, res) => {
     }
 
     // Check if session exists
-    if (!chatSessions.has(sessionId)) {
+    const session = await db.chatSessions.findOne({ id: sessionId });
+    if (!session) {
       return res.status(404).json({ message: 'Chat session not found' });
     }
 
@@ -110,16 +121,17 @@ router.post('/message', (req, res) => {
       moodCheck: moodCheck || null
     };
 
-    // Add message to history
-    if (!chatMessages.has(sessionId)) {
-      chatMessages.set(sessionId, []);
-    }
-    chatMessages.get(sessionId).push(messageObj);
+    // Save message to database
+    await db.chatMessages.insert(messageObj);
 
-    // Update session activity
-    const session = chatSessions.get(sessionId);
-    session.lastActivity = new Date().toISOString();
-    session.messageCount += 1;
+    // Update session activity and message count
+    await db.chatSessions.update(
+      { id: sessionId },
+      { 
+        $set: { lastActivity: new Date().toISOString() },
+        $inc: { messageCount: 1 }
+      }
+    );
 
     res.status(201).json({
       message: 'Message saved successfully',
@@ -133,21 +145,30 @@ router.post('/message', (req, res) => {
 });
 
 // End chat session
-router.put('/session/:sessionId/end', (req, res) => {
+router.put('/session/:sessionId/end', async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    if (!chatSessions.has(sessionId)) {
+    const session = await db.chatSessions.findOne({ id: sessionId });
+    if (!session) {
       return res.status(404).json({ message: 'Chat session not found' });
     }
 
-    const session = chatSessions.get(sessionId);
-    session.active = false;
-    session.endTime = new Date().toISOString();
+    // Update session to inactive
+    const updatedSession = await db.chatSessions.update(
+      { id: sessionId },
+      { 
+        $set: { 
+          active: false,
+          endTime: new Date().toISOString()
+        }
+      },
+      { returnUpdatedDocs: true }
+    );
 
     res.json({
       message: 'Chat session ended successfully',
-      session
+      session: updatedSession
     });
 
   } catch (error) {
@@ -157,32 +178,36 @@ router.put('/session/:sessionId/end', (req, res) => {
 });
 
 // Get user's chat sessions
-router.get('/sessions/:userId', (req, res) => {
+router.get('/sessions/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { active, limit = 10 } = req.query;
 
-    const userSessions = [];
-    for (const [sessionId, session] of chatSessions.entries()) {
-      if (session.userId === userId) {
-        if (active === undefined || session.active === (active === 'true')) {
-          userSessions.push({
-            ...session,
-            messageCount: chatMessages.has(sessionId) ? chatMessages.get(sessionId).length : 0
-          });
-        }
-      }
+    let query = { userId };
+    if (active !== undefined) {
+      query.active = active === 'true';
     }
 
-    // Sort by most recent first
-    userSessions.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
-    
-    // Apply limit
-    const limitedSessions = userSessions.slice(0, parseInt(limit));
+    const sessions = await db.chatSessions.find(query)
+      .sort({ startTime: -1 })
+      .limit(parseInt(limit));
+
+    // Add message count for each session
+    const sessionsWithMessageCount = await Promise.all(
+      sessions.map(async (session) => {
+        const messageCount = await db.chatMessages.count({ sessionId: session.id });
+        return {
+          ...session,
+          messageCount
+        };
+      })
+    );
+
+    const totalCount = await db.chatSessions.count({ userId });
 
     res.json({
-      sessions: limitedSessions,
-      total: userSessions.length
+      sessions: sessionsWithMessageCount,
+      total: totalCount
     });
 
   } catch (error) {
@@ -192,7 +217,7 @@ router.get('/sessions/:userId', (req, res) => {
 });
 
 // Get chat analytics for a user
-router.get('/analytics/:userId', (req, res) => {
+router.get('/analytics/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { days = 30 } = req.query;
@@ -200,38 +225,37 @@ router.get('/analytics/:userId', (req, res) => {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
 
-    let totalSessions = 0;
+    // Get sessions within date range
+    const sessions = await db.chatSessions.find({
+      userId,
+      startTime: { $gte: cutoffDate.toISOString() }
+    });
+
+    let totalSessions = sessions.length;
+    let activeSessions = sessions.filter(s => s.active).length;
     let totalMessages = 0;
-    let activeSessions = 0;
     let averageSessionLength = 0;
     const moodTrends = [];
 
-    for (const [sessionId, session] of chatSessions.entries()) {
-      if (session.userId === userId && new Date(session.startTime) >= cutoffDate) {
-        totalSessions++;
-        if (session.active) activeSessions++;
+    // Calculate analytics
+    for (const session of sessions) {
+      const messages = await db.chatMessages.find({ sessionId: session.id });
+      totalMessages += messages.length;
 
-        if (chatMessages.has(sessionId)) {
-          const messages = chatMessages.get(sessionId);
-          totalMessages += messages.length;
+      // Calculate session length
+      const sessionStart = new Date(session.startTime);
+      const sessionEnd = session.endTime ? new Date(session.endTime) : new Date(session.lastActivity);
+      const sessionLength = (sessionEnd - sessionStart) / (1000 * 60); // in minutes
+      averageSessionLength += sessionLength;
 
-          // Calculate session length
-          const sessionStart = new Date(session.startTime);
-          const sessionEnd = session.endTime ? new Date(session.endTime) : new Date(session.lastActivity);
-          const sessionLength = (sessionEnd - sessionStart) / (1000 * 60); // in minutes
-          averageSessionLength += sessionLength;
-
-          // Extract mood data
-          messages.forEach(msg => {
-            if (msg.moodCheck && msg.sender === 'user') {
-              moodTrends.push({
-                date: msg.timestamp.split('T')[0],
-                mood: msg.moodRating || null
-              });
-            }
-          });
-        }
-      }
+      // Extract mood data
+      const moodRatings = await db.moodRatings.find({ sessionId: session.id });
+      moodRatings.forEach(rating => {
+        moodTrends.push({
+          date: rating.timestamp.split('T')[0],
+          mood: rating.moodRating
+        });
+      });
     }
 
     averageSessionLength = totalSessions > 0 ? averageSessionLength / totalSessions : 0;
@@ -287,7 +311,7 @@ router.post('/bot-response', async (req, res) => {
 });
 
 // Submit mood rating
-router.post('/mood', (req, res) => {
+router.post('/mood', async (req, res) => {
   try {
     const { sessionId, userId, moodRating, notes } = req.body;
 
@@ -299,7 +323,7 @@ router.post('/mood', (req, res) => {
       return res.status(400).json({ message: 'Mood rating must be between 1 and 10' });
     }
 
-    // Save mood entry
+    // Save mood entry to database
     const moodEntry = {
       id: uuidv4(),
       sessionId,
@@ -309,18 +333,29 @@ router.post('/mood', (req, res) => {
       timestamp: new Date().toISOString()
     };
 
-    // Add to session messages as a special message type
-    if (chatMessages.has(sessionId)) {
-      chatMessages.get(sessionId).push({
-        id: uuidv4(),
-        sessionId,
-        message: `Mood rating: ${moodRating}/10${notes ? ` - ${notes}` : ''}`,
-        sender: 'user',
-        timestamp: new Date().toISOString(),
-        moodRating,
-        type: 'mood_entry'
-      });
-    }
+    await db.moodRatings.insert(moodEntry);
+
+    // Also add to chat messages as a special message type
+    const moodMessage = {
+      id: uuidv4(),
+      sessionId,
+      message: `Mood rating: ${moodRating}/10${notes ? ` - ${notes}` : ''}`,
+      sender: 'user',
+      timestamp: new Date().toISOString(),
+      moodRating,
+      type: 'mood_entry'
+    };
+
+    await db.chatMessages.insert(moodMessage);
+
+    // Update session activity
+    await db.chatSessions.update(
+      { id: sessionId },
+      { 
+        $set: { lastActivity: new Date().toISOString() },
+        $inc: { messageCount: 1 }
+      }
+    );
 
     res.status(201).json({
       message: 'Mood rating saved successfully',

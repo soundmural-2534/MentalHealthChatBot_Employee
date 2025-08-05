@@ -5,6 +5,8 @@ import { useAuth } from './contexts/AuthContext';
 import Navbar from './components/Layout/Navbar';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import ChatPage from './pages/ChatPage';
 import DashboardPage from './pages/DashboardPage';
 import ResourcesPage from './pages/ResourcesPage';
@@ -56,6 +58,14 @@ function App() {
           <Route 
             path="/register" 
             element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} 
+          />
+          <Route 
+            path="/forgot-password" 
+            element={user ? <Navigate to="/dashboard" replace /> : <ForgotPasswordPage />} 
+          />
+          <Route 
+            path="/reset-password" 
+            element={user ? <Navigate to="/dashboard" replace /> : <ResetPasswordPage />} 
           />
 
           {/* Protected Routes */}

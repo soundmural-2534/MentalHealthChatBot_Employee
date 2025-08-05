@@ -83,11 +83,18 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       setSessionId(newSessionId);
       
-      toast.success(`Welcome back, ${userData.firstName}!`);
+      toast.success(`Welcome back, ${userData.firstName || userData.name}!`);
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -100,18 +107,25 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       const response = await axios.post('/auth/register', userData);
       
-      const { token, user: newUser } = response.data;
+      const { token, sessionId: newSessionId, user: newUser } = response.data;
       
       localStorage.setItem('token', token);
+      localStorage.setItem('sessionId', newSessionId);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
       setUser(newUser);
+      setSessionId(newSessionId);
       
-      toast.success(`Welcome to MindCare, ${newUser.firstName}!`);
+      toast.success(`Welcome to MindCare, ${newUser.firstName || newUser.name}!`);
       return { success: true };
     } catch (error) {
       console.error('Registration error:', error);
-      const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.response?.status === 400 && error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -181,6 +195,45 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (email) => {
+    try {
+      setLoading(true);
+      const response = await axios.post('/auth/forgot-password', { email });
+      
+      toast.success('Password reset instructions sent to your email');
+      return { 
+        success: true, 
+        message: response.data.message,
+        // In development, also return the reset link for testing
+        ...(response.data.resetLink && { resetLink: response.data.resetLink })
+      };
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to send reset instructions. Please try again.';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetPassword = async (token, newPassword) => {
+    try {
+      setLoading(true);
+      const response = await axios.post('/auth/reset-password', { token, newPassword });
+      
+      toast.success('Password reset successfully! You can now log in with your new password.');
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error('Reset password error:', error);
+      const errorMessage = error.response?.data?.message || 'Password reset failed. Please try again.';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -191,6 +244,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     checkAuth,
     updateProfile,
+    forgotPassword,
+    resetPassword,
     isAuthenticated: !!user,
     isGuest: user?.isGuest || false,
   };

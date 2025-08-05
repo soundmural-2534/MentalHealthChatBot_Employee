@@ -22,6 +22,7 @@ import {
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const MotionPaper = motion(Paper);
 
@@ -86,7 +87,8 @@ const LoginPage = () => {
       return;
     }
 
-    const result = await login(formData.email, formData.password);
+    // Normalize email to lowercase for consistent authentication
+    const result = await login(formData.email.trim().toLowerCase(), formData.password);
     
     if (result.success) {
       navigate(from, { replace: true });
@@ -218,6 +220,27 @@ const LoginPage = () => {
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
+
+            {/* Forgot Password Link */}
+            <Box sx={{ textAlign: 'center', mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Forgot your password?{' '}
+                <Link 
+                  component={RouterLink}
+                  to="/forgot-password"
+                  sx={{ 
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      textDecoration: 'underline'
+                    }
+                  }}
+                >
+                  Reset it here
+                </Link>
+              </Typography>
+            </Box>
 
             {/* Divider */}
             <Divider sx={{ my: 3 }}>

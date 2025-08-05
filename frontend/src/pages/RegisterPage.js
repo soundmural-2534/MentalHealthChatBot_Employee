@@ -113,7 +113,7 @@ const RegisterPage = () => {
     const userData = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
-      email: formData.email.trim(),
+      email: formData.email.trim().toLowerCase(), // Normalize email to lowercase
       password: formData.password,
       employeeId: formData.employeeId.trim() || null
     };
@@ -123,7 +123,14 @@ const RegisterPage = () => {
     if (result.success) {
       navigate('/dashboard');
     } else {
-      setRegisterError(result.error);
+      // Check if it's a "user already exists" error and provide helpful guidance
+      if (result.error && result.error.toLowerCase().includes('already exists')) {
+        setRegisterError(
+          `An account with email "${userData.email}" already exists. Would you like to sign in instead?`
+        );
+      } else {
+        setRegisterError(result.error);
+      }
     }
   };
 
@@ -161,7 +168,23 @@ const RegisterPage = () => {
 
           {/* Error Alert */}
           {registerError && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert 
+              severity="error" 
+              sx={{ mb: 3 }}
+              action={
+                registerError.toLowerCase().includes('already exists') ? (
+                  <Button 
+                    color="inherit" 
+                    size="small" 
+                    component={RouterLink}
+                    to="/login"
+                    sx={{ fontWeight: 600 }}
+                  >
+                    Sign In
+                  </Button>
+                ) : null
+              }
+            >
               {registerError}
             </Alert>
           )}
@@ -259,7 +282,7 @@ const RegisterPage = () => {
                   value={formData.password}
                   onChange={handleChange}
                   error={!!errors.password}
-                  helperText={errors.password}
+                  helperText={errors.password || 'Min 6 characters, include uppercase, lowercase & number'}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">

@@ -58,18 +58,48 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Import chat storage functions
+const axios = require('axios');
+
+// Helper function to save message to persistent storage
+const saveMessageToDB = async (sessionId, message, sender, resources = null, moodCheck = null) => {
+  try {
+    // Use internal API call to save message
+    await axios.post(`http://localhost:${process.env.PORT || 5000}/api/chat/message`, {
+      sessionId,
+      message,
+      sender,
+      resources,
+      moodCheck
+    });
+    console.log('Message saved to database:', { sessionId, sender, message: message.substring(0, 50) + '...' });
+  } catch (error) {
+    console.error('Failed to save message to database:', error.message);
+  }
+};
+
 // Socket.IO for real-time chat
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   socket.on('join_room', (data) => {
     socket.join(data.userId);
-    socket.emit('joined_room', { message: 'Connected to Mental Health Support Chat' });
+    console.log(`User ${data.userId} joined room`);
+    
+    // Send welcome message with initial greeting
+    socket.emit('joined_room', { 
+      message: 'Connected to Mental Health Support Chat',
+      welcomeMessage: 'Hello! I\'m your mental health support assistant. How are you feeling today? I\'m here to listen and help you through whatever you\'re experiencing.'
+    });
   });
 
   socket.on('send_message', async (data) => {
     try {
       const { message, userId, sessionId } = data;
+      console.log(`Processing message from user ${userId}:`, message);
+      
+      // Save user message to database first
+      await saveMessageToDB(sessionId, message, 'user');
       
       // Simulate typing delay for more realistic interaction
       socket.emit('bot_typing', { typing: true });
@@ -84,20 +114,74 @@ io.on('connection', (socket) => {
       // Stop typing indicator
       socket.emit('bot_typing', { typing: false });
       
-      // Emit bot response with proper format for frontend
-      socket.emit('receive_message', {
+      // Prepare bot message
+      const botMessage = {
         id: uuidv4(),
-        text: botResponse.message,  // Changed from 'message' to 'text' to match frontend
+        text: botResponse.message,
         sender: 'bot',
         timestamp: new Date().toISOString(),
         resources: botResponse.resources || null,
         moodCheck: botResponse.moodCheck || null
-      });
+      };
+      
+      // Save bot message to database
+      await saveMessageToDB(
+        sessionId, 
+        botResponse.message, 
+        'bot', 
+        botResponse.resources, 
+        botResponse.moodCheck
+      );
+      
+      // Emit bot response to client
+      socket.emit('receive_message', botMessage);
+      
+      // Log interaction for monitoring
+      console.log(`Bot responded to user ${userId} with ${botResponse.message.length} character message`);
       
     } catch (error) {
       console.error('Chat error:', error);
       socket.emit('bot_typing', { typing: false });
-      socket.emit('chat_error', { message: 'Sorry, I encountered an error. Please try again.' });
+      socket.emit('chat_error', { 
+        message: 'I apologize, but I encountered a technical issue. Please try sending your message again.' 
+      });
+    }
+  });
+
+  // Handle mood rating submissions via socket
+  socket.on('submit_mood_rating', async (data) => {
+    try {
+      const { rating, notes, userId, sessionId } = data;
+      
+      // Save mood rating to database
+      await axios.post(`http://localhost:${process.env.PORT || 5000}/api/chat/mood`, {
+        sessionId,
+        userId,
+        moodRating: rating,
+        notes: notes || ''
+      });
+      
+      // Send acknowledgment and follow-up response
+      const followUpMessage = `Thank you for sharing that you're feeling ${rating}/10. ` +
+        (rating <= 3 ? "I can see you're going through a difficult time. Remember that these feelings are temporary and you're not alone. Would you like to talk about what's making you feel this way?" :
+         rating <= 6 ? "It sounds like you're having a mixed day. That's completely normal. Is there anything specific that's been on your mind?" :
+         "I'm glad to hear you're feeling relatively positive today! What's been going well for you?");
+      
+      socket.emit('receive_message', {
+        id: uuidv4(),
+        text: followUpMessage,
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+        resources: null,
+        moodCheck: null
+      });
+      
+      // Save the follow-up message
+      await saveMessageToDB(sessionId, followUpMessage, 'bot');
+      
+    } catch (error) {
+      console.error('Mood rating error:', error);
+      socket.emit('chat_error', { message: 'Failed to save mood rating. Please try again.' });
     }
   });
 
@@ -123,6 +207,5 @@ app.use('*', (req, res) => {
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log(`🚀 Mental Health Chatbot Server running on port ${PORT}`);
-  console.log(`🏥 Health check available at http://localhost:${PORT}/api/health`);
+  console.log(`Server running on port ${PORT}`);
 }); 

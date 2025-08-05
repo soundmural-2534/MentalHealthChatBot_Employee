@@ -1,0 +1,2 @@
+{"$$indexCreated":{"fieldName":"email","unique":true,"sparse":false}}
+{"id":"1ccdbf92-10dd-453a-a43c-b098886f6328","name":"sandy sam","firstName":"sandy","lastName":"sam","email":"soundarya.muralidaran@cognizant.com","password":"$2a$10$0N3rQTZooGHUXzXq6iY.WuKEPZ1S8WvGcqBksmikOFdmMOp2pcU0y","department":"General","employeeId":null,"createdAt":"2025-08-05T12:59:37.072Z","lastLogin":null,"isActive":true,"_id":"Tgkv4125Hj08sOWh","updatedAt":{"$$date":1754398777072}}
