@@ -27,7 +27,8 @@ import {
   Person,
   Logout,
   Psychology,
-  Close
+  Close,
+  MoodBad
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -67,6 +68,7 @@ const Navbar = () => {
   const navigationItems = [
     { label: 'Dashboard', path: '/dashboard', icon: <Dashboard /> },
     { label: 'Chat', path: '/chat', icon: <Chat /> },
+    { label: 'Mood Tracking', path: '/mood', icon: <MoodBad /> },
     { label: 'Resources', path: '/resources', icon: <LibraryBooks /> },
     { label: 'Profile', path: '/profile', icon: <Person /> }
   ];

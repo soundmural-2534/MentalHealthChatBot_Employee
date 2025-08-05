@@ -218,19 +218,47 @@ const ChatPage = () => {
                               {msg.moodCheck.question}
                             </Typography>
                           </Box>
-                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            {msg.moodCheck.scale.map((rating) => (
-                              <Button
-                                key={rating}
-                                variant="outlined"
-                                size="small"
-                                onClick={() => handleMoodRating(rating, index)}
-                                sx={{ minWidth: 40 }}
-                              >
-                                {rating}
-                              </Button>
-                            ))}
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+                            {msg.moodCheck.scale.map((rating) => {
+                              const getEmotionColor = (rating) => {
+                                if (rating <= 2) return '#f44336'; // Red
+                                if (rating <= 4) return '#ff9800'; // Orange  
+                                if (rating <= 6) return '#ffc107'; // Yellow
+                                if (rating <= 8) return '#8bc34a'; // Light Green
+                                return '#4caf50'; // Green
+                              };
+                              
+                              return (
+                                <Button
+                                  key={rating}
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleMoodRating(rating, index)}
+                                  sx={{ 
+                                    minWidth: 50,
+                                    height: 40,
+                                    borderRadius: 3,
+                                    borderColor: getEmotionColor(rating),
+                                    color: getEmotionColor(rating),
+                                    fontWeight: 600,
+                                    fontSize: '0.9rem',
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': { 
+                                      backgroundColor: getEmotionColor(rating),
+                                      color: 'white',
+                                      transform: 'scale(1.05)',
+                                      boxShadow: `0 4px 12px ${getEmotionColor(rating)}40`
+                                    }
+                                  }}
+                                >
+                                  {rating}
+                                </Button>
+                              );
+                            })}
                           </Box>
+                          <Typography variant="body2" sx={{ mt: 1, textAlign: 'center', color: 'text.secondary', fontSize: '0.75rem' }}>
+                            1 = Very Low • 5 = Neutral • 10 = Excellent
+                          </Typography>
                         </CardContent>
                       </Card>
                     )}

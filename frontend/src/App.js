@@ -11,6 +11,7 @@ import ChatPage from './pages/ChatPage';
 import DashboardPage from './pages/DashboardPage';
 import ResourcesPage from './pages/ResourcesPage';
 import ProfilePage from './pages/ProfilePage';
+import MoodTrackingPage from './pages/MoodTrackingPage';
 import LandingPage from './pages/LandingPage';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import LoadingSpinner from './components/Common/LoadingSpinner';
@@ -98,6 +99,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/mood" 
+            element={
+              <ProtectedRoute>
+                <MoodTrackingPage />
               </ProtectedRoute>
             } 
           />
