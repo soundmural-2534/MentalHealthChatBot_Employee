@@ -4,3 +4,4 @@
 {"id":"7dc794d8-b590-475d-92e5-98ab33591b74","sessionId":"c6c78ec1-126a-45bd-9981-df5b695bf924","userId":"332535b6-74ef-4165-8caf-c92288fa60b0","moodRating":9,"notes":"","emotion":null,"triggers":[],"timestamp":"2025-08-05T15:20:56.992Z","_id":"T2ywUTlwFt24vS4I","createdAt":{"$$date":1754407256992},"updatedAt":{"$$date":1754407256992}}
 {"$$indexCreated":{"fieldName":"sessionId","unique":false,"sparse":false}}
 {"$$indexCreated":{"fieldName":"userId","unique":false,"sparse":false}}
+{"id":"74d2b38d-94d1-4b8f-81fb-1be5210ce96c","sessionId":"mood-tracking-1754408260299","userId":"332535b6-74ef-4165-8caf-c92288fa60b0","moodRating":5,"notes":"","emotion":"neutral","triggers":[],"timestamp":"2025-08-05T15:37:40.304Z","_id":"aTNa2rFsDeYQzOMW","createdAt":{"$$date":1754408260304},"updatedAt":{"$$date":1754408260304}}
