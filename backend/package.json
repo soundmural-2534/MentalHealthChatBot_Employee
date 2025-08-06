@@ -5,7 +5,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "test-email": "node scripts/test-email.js",
+    "test-email-send": "node scripts/test-email.js",
+    "view-db": "node scripts/view-database.js",
+    "view-users": "node scripts/view-database.js users",
+    "view-sessions": "node scripts/view-database.js chat_sessions",
+    "view-messages": "node scripts/view-database.js chat_messages",
+    "view-moods": "node scripts/view-database.js mood_ratings"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -17,6 +24,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "nedb-promise": "^2.0.1",
+    "nodemailer": "^7.0.5",
     "socket.io": "^4.7.4",
     "uuid": "^9.0.1"
   },

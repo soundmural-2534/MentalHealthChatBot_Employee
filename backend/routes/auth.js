@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/database');
+const { sendPasswordResetEmail } = require('../utils/emailService');
 
 const router = express.Router();
 
@@ -335,24 +336,57 @@ router.post('/forgot-password', async (req, res) => {
       }
     );
 
-    // In a real application, you would send an email here
-    // For development, we'll log the reset link
-    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
-    console.log(`\n=== PASSWORD RESET REQUEST ===`);
-    console.log(`Email: ${email}`);
-    console.log(`Reset Link: ${resetLink}`);
-    console.log(`Token: ${resetToken}`);
-    console.log(`Expires: ${resetTokenExpiry}`);
-    console.log(`===============================\n`);
+    // Create reset link
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
+    
+    // Format expiry time for email
+    const expiryTime = new Date(Date.now() + 3600000).toLocaleString();
 
-    res.json({ 
-      message: 'If an account with this email exists, a password reset link has been sent.',
-      // In development, also return the token for testing
-      ...(process.env.NODE_ENV === 'development' && { 
-        resetToken, 
-        resetLink 
-      })
-    });
+    // Send password reset email
+    const emailResult = await sendPasswordResetEmail(
+      user.email, 
+      user.name, 
+      resetLink, 
+      expiryTime
+    );
+
+    if (emailResult.success) {
+      console.log(`Password reset email sent to: ${user.email}`);
+      
+      res.json({ 
+        message: 'If an account with this email exists, a password reset link has been sent.',
+        // In development, also return the token for testing
+        ...(process.env.NODE_ENV === 'development' && { 
+          resetToken, 
+          resetLink,
+          emailSent: true
+        })
+      });
+    } else {
+      console.error('Failed to send password reset email:', emailResult.error);
+      
+      // For development, still log the reset link
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`\n=== PASSWORD RESET REQUEST (EMAIL FAILED) ===`);
+        console.log(`Email: ${email}`);
+        console.log(`Reset Link: ${resetLink}`);
+        console.log(`Token: ${resetToken}`);
+        console.log(`Expires: ${resetTokenExpiry}`);
+        console.log(`===============================\n`);
+      }
+      
+      res.json({ 
+        message: 'If an account with this email exists, a password reset link has been sent.',
+        // In development, also return the token for testing even if email failed
+        ...(process.env.NODE_ENV === 'development' && { 
+          resetToken, 
+          resetLink,
+          emailSent: false,
+          emailError: emailResult.error
+        })
+      });
+    }
 
   } catch (error) {
     console.error('Forgot password error:', error);

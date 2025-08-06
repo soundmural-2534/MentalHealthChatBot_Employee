@@ -10,6 +10,7 @@ A comprehensive mental health support platform built with Node.js and React.js, 
 - **Mood Tracking**: Monitor mental wellness journey with analytics
 - **Resource Library**: Curated mental health resources and coping strategies
 - **Crisis Support**: Immediate access to emergency mental health resources
+- **Password Reset**: Secure email-based password recovery system
 
 ### User Experience
 - **Modern UI/UX**: Beautiful, responsive design with smooth animations
@@ -22,6 +23,7 @@ A comprehensive mental health support platform built with Node.js and React.js, 
 - **Data Encryption**: Protected mental health information
 - **Rate Limiting**: Protection against abuse
 - **CORS Protection**: Secure cross-origin requests
+- **Email-based Password Reset**: Secure token-based password recovery
 
 ## 🚀 Quick Start
 
@@ -52,7 +54,18 @@ A comprehensive mental health support platform built with Node.js and React.js, 
    npm run dev
    ```
 
-4. **Access the application**
+4. **Configure email settings (optional)**
+   ```bash
+   # Copy the email setup guide
+   cp EMAIL_SETUP.md backend/
+   
+   # Create .env file in backend directory
+   cd backend
+   cp .env.example .env
+   # Edit .env with your email configuration
+   ```
+
+5. **Access the application**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:5000
    - Health Check: http://localhost:5000/api/health
@@ -83,7 +96,10 @@ MentalHealthChatBot_Employee/
 │   │   ├── chat.js         # Chat functionality
 │   │   └── resources.js    # Mental health resources
 │   ├── utils/              # Utility functions
-│   │   └── mentalHealthBot.js  # AI chatbot logic
+│   │   ├── mentalHealthBot.js  # AI chatbot logic
+│   │   └── emailService.js     # Email service for password reset
+│   ├── scripts/            # Utility scripts
+│   │   └── test-email.js   # Email configuration testing
 │   ├── package.json        # Backend dependencies
 │   └── server.js           # Express server setup
 ├── frontend/               # React.js application
@@ -91,11 +107,14 @@ MentalHealthChatBot_Employee/
 │   │   ├── components/     # React components
 │   │   ├── contexts/       # React contexts (Auth, Chat)
 │   │   ├── pages/          # Page components
+│   │   │   ├── ForgotPasswordPage.js  # Password reset request
+│   │   │   └── ResetPasswordPage.js   # Password reset form
 │   │   └── App.js          # Main App component
 │   ├── public/             # Static assets
 │   └── package.json        # Frontend dependencies
 ├── package.json            # Root package.json with scripts
-└── README.md              # This file
+├── README.md              # This file
+└── EMAIL_SETUP.md         # Email configuration guide
 ```
 
 ## 🔧 Configuration
@@ -108,6 +127,26 @@ Key configurations:
 - `NODE_ENV`: Environment mode (development/production)
 - `JWT_SECRET`: JWT signing secret
 - `FRONTEND_URL`: Frontend URL for CORS (default: http://localhost:3000)
+
+### Email Configuration (Password Reset)
+To enable password reset functionality, configure email settings in your `.env` file:
+
+**For Development (Gmail):**
+```bash
+EMAIL_USER=your-gmail@gmail.com
+EMAIL_PASS=your-gmail-app-password
+EMAIL_FROM=your-gmail@gmail.com
+```
+
+**For Production (SMTP):**
+```bash
+SMTP_HOST=smtp.your-company.com
+SMTP_PORT=587
+SMTP_USER=noreply@your-company.com
+SMTP_PASS=your-smtp-password
+```
+
+📖 **See `EMAIL_SETUP.md` for detailed configuration instructions.**
 
 ### Frontend Configuration
 The frontend automatically connects to the backend running on port 5000 via proxy configuration.
@@ -123,6 +162,8 @@ The frontend automatically connects to the backend running on port 5000 via prox
 ### Backend Scripts
 - `npm run dev` - Start backend with nodemon (auto-restart)
 - `npm start` - Start backend in production mode
+- `npm run test-email` - Test email configuration
+- `npm run test-email-send <email>` - Send test email to specified address
 
 ### Frontend Scripts
 - `npm start` - Start development server
@@ -137,6 +178,8 @@ The frontend automatically connects to the backend running on port 5000 via prox
 - `POST /api/auth/guest` - Guest login
 - `GET /api/auth/profile` - Get user profile
 - `POST /api/auth/logout` - User logout
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset password with token
 
 ### Chat Endpoints
 - `POST /api/chat/session` - Create/get chat session
@@ -157,6 +200,7 @@ The frontend automatically connects to the backend running on port 5000 via prox
 - **Socket.IO** - Real-time communication
 - **JWT** - Authentication
 - **bcryptjs** - Password hashing
+- **Nodemailer** - Email service for password reset
 - **Helmet** - Security middleware
 
 ### Frontend
@@ -171,10 +215,39 @@ The frontend automatically connects to the backend running on port 5000 via prox
 
 - JWT-based authentication
 - Password hashing with bcrypt
+- Secure password reset with time-limited tokens
+- Email-based password recovery
 - Rate limiting to prevent abuse
 - CORS protection
 - Input validation and sanitization
 - Secure session management
+
+## 📧 Password Reset System
+
+The application includes a comprehensive password reset system:
+
+### Features
+- **Email-based recovery**: Secure password reset links sent via email
+- **Time-limited tokens**: Reset tokens expire after 1 hour
+- **One-time use**: Tokens are invalidated after successful password reset
+- **Beautiful email templates**: Professional HTML emails with security warnings
+- **Development fallback**: Console logging when email service is not configured
+
+### Testing Email Configuration
+```bash
+# Test email configuration only
+cd backend
+npm run test-email
+
+# Send a test email
+npm run test-email your-email@example.com
+```
+
+### Security Measures
+- Tokens are cryptographically secure (UUID v4)
+- Email addresses are not revealed in error messages
+- Reset attempts are logged for security monitoring
+- Links expire automatically for security
 
 ## 🏥 Mental Health Resources
 

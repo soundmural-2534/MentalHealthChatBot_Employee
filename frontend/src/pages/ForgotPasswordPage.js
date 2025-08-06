@@ -44,14 +44,22 @@ const ForgotPasswordPage = () => {
     setError('');
 
     try {
-      const response = await axios.post('/auth/forgot-password', { email });
+      const response = await axios.post('/api/auth/forgot-password', { email });
       setSuccess(true);
       toast.success('Password reset instructions sent to your email');
       
-      // In development, show the reset link
+      // In development, show additional feedback
       if (response.data.resetLink) {
         console.log('Reset Link:', response.data.resetLink);
-        toast.success(`Development: Check console for reset link`, { duration: 5000 });
+        
+        if (response.data.emailSent === false) {
+          toast.error('Email service not configured. Check console for reset link.', { duration: 8000 });
+          console.warn('Email Configuration Error:', response.data.emailError);
+        } else if (response.data.emailSent === true) {
+          toast.success('Email sent successfully!', { duration: 5000 });
+        } else {
+          toast.success('Development: Check console for reset link', { duration: 5000 });
+        }
       }
     } catch (error) {
       const message = error.response?.data?.message || 'An error occurred. Please try again.';
